@@ -145,93 +145,118 @@ int main()
     cout << "\033[" << rowSize + 4 << ";" << 1 << "H" << "TO PLACE DOWN A PARTICLE, PRESS 'ENTER'";
 
     int userX = colSize/2;
-    int userY = rowSize/2;
+    int userY = rowSize/2; //correcting for offset 
 
     vector<Particle*> spawnedParticles; 
 
     char userIn ;
-    int debugIndex = 17; 
-    
-    unordered_map<int, Particle*> particleTracker; 
 
-    /*
-    1) prevent users from adding overlapping particles 
-    2) add debugging info that highlights a particle's data when hovered over (like a side panel) 
-    3) ability to delete particles 
-    4) 
-    */
+    //int debugIndex = 16; 
+    
+    unordered_map<int, pair<Particle*,int>> particleTracker; 
+
+    int flatInd = userY * colSize + userX;
 
     while (true) {
+
+        int trueUserX = userX + 1; 
+        int trueUserY = userY + 2; // terminal offset + world offset 
+
         if (_kbhit) {
             userIn = _getch();
             if (userIn == '\r') {
                 //offsetting userY by 3 to account for world's position & terminal indexing 
-                cout << "\033[" << userY + 3 << ";" << userX + 1 << "H" << '@';
+                cout << "\033[" << trueUserY << ";" << trueUserX  << "H" << '@';
 
-                int flatInd = userY * colSize + userX;
+                if (particleTracker.find(flatInd) == particleTracker.end()) { //creating particle
 
-                if (particleTracker.find(flatInd) == particleTracker.end()) {
                     world[userY][userX] = '@';
                     Particle* temp = new Particle(userX, userY, 5.0);
                     spawnedParticles.push_back(temp);
+                    
+                    int vectIndex = spawnedParticles.size() - 1 > 0 ? spawnedParticles.size() - 1 : 0; 
 
-                    particleTracker[flatInd] = temp; //tracking particle 
-
-                    cout << "\033[" << rowSize + 7 << ";" << 1 << "H" << string(30, ' ');
-                }
-                else {
-                    cout << "\033[" << rowSize + 7 << ";" << 1 << "H" << "Position is already reserved!";
+                    particleTracker[flatInd] = { temp , vectIndex }; //tracking particle 
                 }
             }
-            else if (tolower(userIn) == 'e') { //exiting preparation phase 
-                //complete = true;
+
+            if (tolower(userIn) == 'e')  //exiting setup phase 
                 break;
+
+            if (tolower(userIn) == '\b' && particleTracker.find(flatInd) != particleTracker.end()) { //backspace to delete select particles 
+                int vectInd = particleTracker[flatInd].second;
+                particleTracker.erase(flatInd); 
+                spawnedParticles.erase(spawnedParticles.begin() + vectInd);
+
+                cout << "\033[" << trueUserY << ";" << trueUserX << "H" << '.';
             }
 
             //user controls
             switch (tolower(userIn))
             {
             case 'w':
-                userY--;
+                if (!(userY - 1 < 0) && world[userY-1][userX] != '#') {
+                    userY--;
+                    trueUserY--;
+                }
                 break;
             case 'a':
-                userX--;
+                if (!(userX - 1 < 0) && world[userY][userX-1] != '#') {
+                    userX--;
+                    trueUserX--;
+                }
                 break;
             case 's':
-                userY++;
+                if (!(userY + 1 >= rowSize) && world[userY + 1][userX] != '#') {
+                    userY++;
+                    trueUserY++;
+                }
                 break;
             case 'd':
-                userX++;
+                if (!(userX + 1 >= colSize) && world[userY][userX+1] != '#') {
+                    userX++;
+                    trueUserX++;
+                }
                 break;
             default:
                 break;
             }
 
-            int flatInd = userY * colSize + userX;
+            flatInd = userY * colSize + userX;
 
             if (particleTracker.find(flatInd) != particleTracker.end()) {
-                Particle* temp = particleTracker[flatInd]; 
+                Particle* temp = particleTracker[flatInd].first; 
                 cout << "\033[" << 3 << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
                 cout << "\033[" << 4 << ";" << colSize + 2 << "H" << "POSITION: "<<temp->posX<<", "<<temp->posY;
                 cout << "\033[" << 5 << ";" << colSize + 2 << "H" << "MASS: "<<temp->mass;
                 cout << "\033[" << 6 << ";" << colSize + 2 << "H" << "FLAT INDEX: " << flatInd;
+
+                cout << "\033[" << 7 << ";" << colSize + 2 << "H" << "Position is already reserved!";
             }
-            else { //clear the previous debug info 
+            else{ //clear the previous debug info 
                 cout << "\033[" << 3 << ";" << colSize + 2 << "H" << string(30, ' ');
                 cout << "\033[" << 4 << ";" << colSize + 2 << "H" << string(30, ' ');
                 cout << "\033[" << 5 << ";" << colSize + 2 << "H" << string(30, ' ');
                 cout << "\033[" << 6 << ";" << colSize + 2 << "H" << string(30, ' ');
+
+                cout << "\033[" << 7 << ";" << colSize + 2 << "H" << string(30, ' ');
             }
             // "\033[s" to save cursor position *only for windows terminals 
             // "\033[u" to restore cursor position 
 
-            cout << "\033[" << userY + 3 << ";" << userX + 1 << "H" << "\033[s";
+            cout << "\033[" << trueUserY << ";" << trueUserX << "H" << "\033[s";
 
-            debugIndex = debugIndex+1 > 22 ? 17 : debugIndex + 1;
+            //debugIndex = debugIndex+1 > 22 ? 17 : debugIndex + 1;
         }
-        cout << "\033[" << rowSize + 5 << ";" << 1 << "H" << "SELECT POSITION: "<<userX <<", " << userY;
-        cout << "\033[" << rowSize + 6 << ";" << 1 << "H" << "KEY PRESSED : ";
-        cout << "\033[" << rowSize + 6 << ";" << debugIndex << "H" << userIn; 
+        int base = rowSize + 5;
+        cout << "\033[" << base << ";" << 1 << "H" << "TRUE POSITION: " << trueUserX << "," << trueUserY << " ";
+        cout << "\033[" << base + 1 << ";" << 1 << "H" << "SELECT POSITION: "<<userX <<"," << userY<<" "<<" flatInd: "<<flatInd<<" ";
+        cout << "\033[" << base + 2 << ";" << 1 << "H" << "KEY PRESSED : ";
+        cout << "\033[" << base + 2 << ";" << 17 << "H" << userIn; 
+                           
+        cout << "\033[" << base + 3 << ";" << 1 << "H" << "SIZE OF particleTracker: "<<particleTracker.size();
+        cout << "\033[" << base + 4 << ";" << 1 << "H" << "SIZE OF spawnedParticles: " << spawnedParticles.size();
+
 
         cout << "\033[u"; //restore cursor to user-inputted coordinate
     };
