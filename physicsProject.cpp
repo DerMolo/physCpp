@@ -2,6 +2,7 @@
 #include <thread>
 #include <iostream>
 
+#include <unordered_map>
 #include<string>
 #include<vector>
 #include<conio.h>
@@ -36,11 +37,18 @@ struct Force {
 
     float mass; 
     float angle; 
-
-    Direction dir;
+    
+    Force(float accX, float accY, float m, float ang) {
+        accelX = accX; 
+        accelY = accY; 
+        mass = m; 
+        angle = ang; 
+    }
 };
 
 struct Particle {
+    float mass; 
+
     float velX; 
     float velY; 
 
@@ -51,11 +59,17 @@ struct Particle {
     int posY; 
     
     //global forces 
-    Force gravity;
-    Force drag; 
+    float gravity = -9.8; //accelY, angle applied
+    float drag;
 
     //trajectory as determined by applied forces
     Direction dir; 
+
+    Particle(int x, int y, float m) {
+         posX = x; 
+         posY = y;
+         mass = m;
+    }
 };
 
 
@@ -89,6 +103,9 @@ void renderWorld(vector<Particle> tempParts) {
    * later objective: 
    * handle all collisions 
     */
+
+
+    //each spatial unit is .5m
 
     for (auto speck : tempParts) {
 
@@ -126,27 +143,48 @@ int main()
 
     cout << "\033[" << rowSize + 3 << ";" << 1 << "H" << "TO FINALIZE SETUP, PRESS 'E'";
     cout << "\033[" << rowSize + 4 << ";" << 1 << "H" << "TO PLACE DOWN A PARTICLE, PRESS 'ENTER'";
-    
-    bool complete = false; 
 
     int userX = colSize/2;
     int userY = rowSize/2;
 
-    vector<Particle> spawnedParticles; 
+    vector<Particle*> spawnedParticles; 
 
     char userIn ;
     int debugIndex = 17; 
+    
+    unordered_map<int, Particle*> particleTracker; 
 
-    while (!complete) {
+    /*
+    1) prevent users from adding overlapping particles 
+    2) add debugging info that highlights a particle's data when hovered over (like a side panel) 
+    3) ability to delete particles 
+    4) 
+    */
+
+    while (true) {
         if (_kbhit) {
             userIn = _getch();
             if (userIn == '\r') {
                 //offsetting userY by 3 to account for world's position & terminal indexing 
-                cout << "\033[" << userY + 3 << ";" << userX + 1 << "H" << '@' << endl;
+                cout << "\033[" << userY + 3 << ";" << userX + 1 << "H" << '@';
 
+                int flatInd = userY * colSize + userX;
+
+                if (particleTracker.find(flatInd) == particleTracker.end()) {
+                    world[userY][userX] = '@';
+                    Particle* temp = new Particle(userX, userY, 5.0);
+                    spawnedParticles.push_back(temp);
+
+                    particleTracker[flatInd] = temp; //tracking particle 
+
+                    cout << "\033[" << rowSize + 7 << ";" << 1 << "H" << string(30, ' ');
+                }
+                else {
+                    cout << "\033[" << rowSize + 7 << ";" << 1 << "H" << "Position is already reserved!";
+                }
             }
-            else if (tolower(userIn) == 'e') {
-                complete = true;
+            else if (tolower(userIn) == 'e') { //exiting preparation phase 
+                //complete = true;
                 break;
             }
 
@@ -154,19 +192,35 @@ int main()
             switch (tolower(userIn))
             {
             case 'w':
-                userY++;
+                userY--;
                 break;
             case 'a':
                 userX--;
                 break;
             case 's':
-                userY--;
+                userY++;
                 break;
             case 'd':
                 userX++;
                 break;
             default:
                 break;
+            }
+
+            int flatInd = userY * colSize + userX;
+
+            if (particleTracker.find(flatInd) != particleTracker.end()) {
+                Particle* temp = particleTracker[flatInd]; 
+                cout << "\033[" << 3 << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
+                cout << "\033[" << 4 << ";" << colSize + 2 << "H" << "POSITION: "<<temp->posX<<", "<<temp->posY;
+                cout << "\033[" << 5 << ";" << colSize + 2 << "H" << "MASS: "<<temp->mass;
+                cout << "\033[" << 6 << ";" << colSize + 2 << "H" << "FLAT INDEX: " << flatInd;
+            }
+            else { //clear the previous debug info 
+                cout << "\033[" << 3 << ";" << colSize + 2 << "H" << string(30, ' ');
+                cout << "\033[" << 4 << ";" << colSize + 2 << "H" << string(30, ' ');
+                cout << "\033[" << 5 << ";" << colSize + 2 << "H" << string(30, ' ');
+                cout << "\033[" << 6 << ";" << colSize + 2 << "H" << string(30, ' ');
             }
             // "\033[s" to save cursor position *only for windows terminals 
             // "\033[u" to restore cursor position 
@@ -179,8 +233,9 @@ int main()
         cout << "\033[" << rowSize + 6 << ";" << 1 << "H" << "KEY PRESSED : ";
         cout << "\033[" << rowSize + 6 << ";" << debugIndex << "H" << userIn; 
 
-        cout << "\033[u";
+        cout << "\033[u"; //restore cursor to user-inputted coordinate
     };
+
 
 
     while (true) {
