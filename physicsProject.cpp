@@ -71,6 +71,12 @@ struct Particle {
     Direction dir; 
 
     Particle(int x, int y, float m) {
+         velX = 0; 
+         velY = 0;
+
+         accX = 0;
+         accY = 0;
+
          posX = x; 
          posY = y;
          mass = m;
@@ -151,12 +157,27 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         speck->posY = (rowSize - speck->coordY) / spatialUnit - rowSize;
 
         flatInd = speck->posY * colSize + speck->posX;
-       //converting posX and posY to terminal-based coordinates  
-        if (world[flatInd] == '#' || world[flatInd] == '@') {
+        cout << "\033[" << rowSize + 3 << ";1H" << " flatInd: " << flatInd << " Position: " << speck->posX << "," << speck->posY;
+        if (world[flatInd] == '#' || world[flatInd] == '@') { //blocking collisions with borders and other particles 
             //dunno if this warrants a specialized copy assignment operator
             speck = tempPart; 
+            world[tempFlatInd] = '@';
+            flatInd = tempFlatInd; 
         }
+        cout << "\033[" << speck->posX + 1 << ";" << speck->posY + 2 << "H" << world[tempFlatInd]; 
     }
+}
+
+void cleanDebug() {
+
+    for(int i = 3;i<=8;i++)
+        cout << "\033[" << i << ";" << colSize + 2 << "H" << string(30, ' ');
+
+    int base = rowSize + 3;
+
+    for(int i = 0;i<=6;i++)
+        cout << "\033[" << base + i<< ";" << 1 << "H" << string(50, ' ');
+
 }
 
 int main()
@@ -321,6 +342,7 @@ int main()
         cout << "\033[u"; //restore cursor to user-inputted coordinate
     };
 
+    cleanDebug();
 
     int frameCount = 0;
 
@@ -329,7 +351,7 @@ int main()
 
         //PHYS WORK
 
-
+        renderWorld(*world, spawnedParticles);
 
         //ELAPSED TIME
         auto workEnd = chrono::steady_clock::now();
