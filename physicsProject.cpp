@@ -77,7 +77,7 @@ struct Particle {
          coordX = posX * spatialUnit;
          coordY = rowSize - (posY + rowSize) * spatialUnit;
     }
-    void setPosition(int x, int y) {
+    void setPosition(int x, int y) { //helper just in case (probably won't use) 
         posX = x; 
         posY = y; 
         coordX = posX * spatialUnit;
@@ -102,7 +102,7 @@ void printWorld(char* world) {
     }
 }
 
-void renderWorld(char* world, vector<Particle> tempParts) { 
+void renderWorld(char* world, vector<Particle*> tempParts) { 
     /* 
     should each frame be considered a simulated second? no 
     simulated time should be deterministic 
@@ -116,27 +116,46 @@ void renderWorld(char* world, vector<Particle> tempParts) {
    * later objective: 
    * handle all collisions 
     */
+
     worldTime += worldTick; 
 
     //each spatial unit is .5m
 
+    //incrementally updating position for each particle (per function call)
+
+    //major flaw with sequential: particle trajectories must be calculated in parallel. 
+    // supposing two particles are enroute to collide, particle A might just collide with the un-processed particle B (thus breaking the simulation's logic) 
+
+    //For now, I'll just do this naive approach and see what happens.
     for (auto speck : tempParts) {
+
+        Particle* tempPart = speck; 
         //clearing previous position: 
 
-        int flatInd = speck.posY * colSize + speck.posX; 
+        int flatInd = speck->posY * colSize + speck->posX; 
+        int tempFlatInd = flatInd; 
+
         world[flatInd] = '.';
 
         //calculating new position: 
         //euler's update rule: 
 
-        speck.velY += (speck.accY - speck.gravity) * worldTick; //addition for downward direction 
-        speck.velX += speck.accX;
+        speck->velY += (speck->accY - speck->gravity) * worldTick; 
+        speck->velX += speck->accX;
         
-        speck.posX += speck.velX * worldTick;
-        speck.posY += speck.velY * worldTick;
+        speck->coordX += speck->velX * worldTick;
+        speck->coordY += speck->velY * worldTick;
 
-       //converting posX and posY to terminal-based coorindates 
+        //converting spatial coordinate to terminal coordinate 
+        speck->posX = speck->coordX / spatialUnit; 
+        speck->posY = (rowSize - speck->coordY) / spatialUnit - rowSize;
 
+        flatInd = speck->posY * colSize + speck->posX;
+       //converting posX and posY to terminal-based coordinates  
+        if (world[flatInd] == '#' || world[flatInd] == '@') {
+            //dunno if this warrants a specialized copy assignment operator
+            speck = tempPart; 
+        }
     }
 }
 
@@ -217,6 +236,7 @@ int main()
                 Particle* target = particleTracker[flatInd];
 
                 particleTracker.erase(flatInd); 
+
                 //linear search 
                 for (auto i = spawnedParticles.begin(); i != spawnedParticles.end(); i++) {
                     if (*i == target) {
