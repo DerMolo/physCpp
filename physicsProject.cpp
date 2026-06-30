@@ -13,11 +13,13 @@ using namespace std;
 
 const int colSize = 50;
 const int rowSize = 20;
+const float spatialUnit = 0.5; //meters 
+
 
 //GLOBAL CLOCK 
 float worldTime = 0.0;
-
 const float worldTick = 0.0002;
+
 
 enum class Direction{ //may be unnecessary 
     NEUTRAL,//NULL
@@ -55,11 +57,14 @@ struct Particle {
     float accX; 
     float accY; 
 
+    float coordX; 
+    float coordY;
+
     int posX; 
     int posY; 
     
     //global forces 
-    float gravity = -9.8; //accelY, angle applied
+    float gravity = 9.8; //accelY, angle applied
     float drag;
 
     //trajectory as determined by applied forces
@@ -69,6 +74,14 @@ struct Particle {
          posX = x; 
          posY = y;
          mass = m;
+         coordX = posX * spatialUnit;
+         coordY = rowSize - (posY + rowSize) * spatialUnit;
+    }
+    void setPosition(int x, int y) {
+        posX = x; 
+        posY = y; 
+        coordX = posX * spatialUnit;
+        coordY = rowSize - (posY + rowSize) * spatialUnit;
     }
 };
 
@@ -89,7 +102,7 @@ void printWorld(char* world) {
     }
 }
 
-void renderWorld(vector<Particle> tempParts) { 
+void renderWorld(char* world, vector<Particle> tempParts) { 
     /* 
     should each frame be considered a simulated second? no 
     simulated time should be deterministic 
@@ -103,11 +116,26 @@ void renderWorld(vector<Particle> tempParts) {
    * later objective: 
    * handle all collisions 
     */
-
+    worldTime += worldTick; 
 
     //each spatial unit is .5m
 
     for (auto speck : tempParts) {
+        //clearing previous position: 
+
+        int flatInd = speck.posY * colSize + speck.posX; 
+        world[flatInd] = '.';
+
+        //calculating new position: 
+        //euler's update rule: 
+
+        speck.velY += (speck.accY - speck.gravity) * worldTick; //addition for downward direction 
+        speck.velX += speck.accX;
+        
+        speck.posX += speck.velX * worldTick;
+        speck.posY += speck.velY * worldTick;
+
+       //converting posX and posY to terminal-based coorindates 
 
     }
 }
@@ -145,19 +173,20 @@ int main()
     cout << "\033[" << rowSize + 4 << ";" << 1 << "H" << "TO PLACE DOWN A PARTICLE, PRESS 'ENTER'";
 
     int userX = colSize/2;
-    int userY = rowSize/2; //correcting for offset 
+    int userY = rowSize/2; 
 
     vector<Particle*> spawnedParticles; 
 
     char userIn ;
 
     //int debugIndex = 16; 
-    
-    unordered_map<int, pair<Particle*,int>> particleTracker; 
+    //unordered_map<int, pair<Particle*,int>> particleTracker; 
+
+    unordered_map<int, Particle*> particleTracker;
 
     int flatInd = userY * colSize + userX;
 
-    while (true) {
+    while (true) { //SETUP PHASE 
 
         int trueUserX = userX + 1; 
         int trueUserY = userY + 2; // terminal offset + world offset 
@@ -171,12 +200,13 @@ int main()
                 if (particleTracker.find(flatInd) == particleTracker.end()) { //creating particle
 
                     world[userY][userX] = '@';
+                    //rowSize - (userY + rowSize) : converting from terminal-based coordinates to 
+
                     Particle* temp = new Particle(userX, userY, 5.0);
+
                     spawnedParticles.push_back(temp);
                     
-                    int vectIndex = spawnedParticles.size() - 1 > 0 ? spawnedParticles.size() - 1 : 0; 
-
-                    particleTracker[flatInd] = { temp , vectIndex }; //tracking particle 
+                    particleTracker[flatInd] = temp; //tracking particle 
                 }
             }
 
@@ -184,9 +214,16 @@ int main()
                 break;
 
             if (tolower(userIn) == '\b' && particleTracker.find(flatInd) != particleTracker.end()) { //backspace to delete select particles 
-                int vectInd = particleTracker[flatInd].second;
+                Particle* target = particleTracker[flatInd];
+
                 particleTracker.erase(flatInd); 
-                spawnedParticles.erase(spawnedParticles.begin() + vectInd);
+                //linear search 
+                for (auto i = spawnedParticles.begin(); i != spawnedParticles.end(); i++) {
+                    if (*i == target) {
+                        spawnedParticles.erase(i);
+                        break;
+                    }
+                }
 
                 cout << "\033[" << trueUserY << ";" << trueUserX << "H" << '.';
             }
@@ -225,13 +262,14 @@ int main()
             flatInd = userY * colSize + userX;
 
             if (particleTracker.find(flatInd) != particleTracker.end()) {
-                Particle* temp = particleTracker[flatInd].first; 
+                Particle* temp = particleTracker[flatInd]; 
                 cout << "\033[" << 3 << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
                 cout << "\033[" << 4 << ";" << colSize + 2 << "H" << "POSITION: "<<temp->posX<<", "<<temp->posY;
                 cout << "\033[" << 5 << ";" << colSize + 2 << "H" << "MASS: "<<temp->mass;
                 cout << "\033[" << 6 << ";" << colSize + 2 << "H" << "FLAT INDEX: " << flatInd;
 
                 cout << "\033[" << 7 << ";" << colSize + 2 << "H" << "Position is already reserved!";
+                cout << "\033[" << 8 << ";" << colSize + 2 << "H" << "COORD DATA: " << temp->coordX<<","<<temp->coordY<<" ";
             }
             else{ //clear the previous debug info 
                 cout << "\033[" << 3 << ";" << colSize + 2 << "H" << string(30, ' ');
@@ -240,6 +278,8 @@ int main()
                 cout << "\033[" << 6 << ";" << colSize + 2 << "H" << string(30, ' ');
 
                 cout << "\033[" << 7 << ";" << colSize + 2 << "H" << string(30, ' ');
+                cout << "\033[" << 8 << ";" << colSize + 2 << "H" << string(30, ' ');
+
             }
             // "\033[s" to save cursor position *only for windows terminals 
             // "\033[u" to restore cursor position 
@@ -262,6 +302,7 @@ int main()
     };
 
 
+    int frameCount = 0;
 
     while (true) {
         auto frameStart = chrono::steady_clock::now();
@@ -285,7 +326,8 @@ int main()
         auto frameEnd = chrono::steady_clock::now();
         chrono::duration<float> totalFrameTime = frameEnd - frameStart;
 
-        cout << "\033[1;1H" << "FPS: " << 1.0f / totalFrameTime.count() << endl;
+        frameCount++; 
+        cout << "\033[1;1H" << "FPS: " << 1.0f / totalFrameTime.count() << "  " << frameCount << endl;
     }
 
     return 0;
