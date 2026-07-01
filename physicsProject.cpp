@@ -7,6 +7,8 @@
 #include<vector>
 #include<conio.h>
 
+#include <cmath>
+
 using namespace std;
 
 //GLOBAL VARS 
@@ -18,7 +20,7 @@ const float spatialUnit = 0.5; //meters
 
 //GLOBAL CLOCK 
 float worldTime = 0.0;
-const float worldTick = 0.0002;
+const float worldTick = 0.05;
 
 
 enum class Direction{ //may be unnecessary 
@@ -33,20 +35,20 @@ enum class Direction{ //may be unnecessary
     D_LEFT//225
 };
 
-struct Force { 
-    float accelX; 
-    float accelY; 
-
-    float mass; 
-    float angle; 
-    
-    Force(float accX, float accY, float m, float ang) {
-        accelX = accX; 
-        accelY = accY; 
-        mass = m; 
-        angle = ang; 
-    }
-};
+//struct Force { 
+//    float accelX; 
+//    float accelY; 
+//
+//    float mass; 
+//    float angle; 
+//    
+//    Force(float accX, float accY, float m, float ang) {
+//        accelX = accX; 
+//        accelY = accY; 
+//        mass = m; 
+//        angle = ang; 
+//    }
+//};
 
 struct Particle {
     float mass; 
@@ -64,13 +66,17 @@ struct Particle {
     int posY; 
     
     //global forces 
-    float gravity = 9.8; //accelY, angle applied
+    float gravity = -9.8; 
     float drag;
+
+    float angle; 
 
     //trajectory as determined by applied forces
     Direction dir; 
 
     Particle(int x, int y, float m) {
+         mass = m;
+
          velX = 0; 
          velY = 0;
 
@@ -79,15 +85,11 @@ struct Particle {
 
          posX = x; 
          posY = y;
-         mass = m;
+
          coordX = posX * spatialUnit;
          coordY = rowSize - (posY + rowSize) * spatialUnit;
-    }
-    void setPosition(int x, int y) { //helper just in case (probably won't use) 
-        posX = x; 
-        posY = y; 
-        coordX = posX * spatialUnit;
-        coordY = rowSize - (posY + rowSize) * spatialUnit;
+
+         angle = 0.0;
     }
 };
 
@@ -108,19 +110,25 @@ void printWorld(char* world) {
     }
 }
 
+void wallCollision(Particle*& speck, int& flatInd) { 
+    //effectively rebounds incoming velocity
+
+    
+
+    //updating flatInd 
+    flatInd = speck->posY * colSize + speck->posX; 
+}
+
+
 void renderWorld(char* world, vector<Particle*> tempParts) { 
-    /* 
-    should each frame be considered a simulated second? no 
-    simulated time should be deterministic 
-    */
 
     /*
     current objective: 
    * apply a force to every particle in the scene. (ensure proper trajectory) 
-   * ensure particles don't cross border '#' 
+   * ensure particles don't cross border '#' (basic collisions) 
    * 
    * later objective: 
-   * handle all collisions 
+   * handle all particle-based collisions 
     */
 
     worldTime += worldTick; 
@@ -141,16 +149,16 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         int flatInd = speck->posY * colSize + speck->posX; 
         int tempFlatInd = flatInd; 
 
-        world[flatInd] = '.';
-
         //calculating new position: 
         //euler's update rule: 
 
-        speck->velY += (speck->accY - speck->gravity) * worldTick; 
+        speck->velY += (speck->accY + speck->gravity) * worldTick; 
         speck->velX += speck->accX;
         
         speck->coordX += speck->velX * worldTick;
         speck->coordY += speck->velY * worldTick;
+
+        speck->angle = atan2(speck->velY, speck->velX);
 
         //converting spatial coordinate to terminal coordinate 
         speck->posX = speck->coordX / spatialUnit; 
@@ -158,15 +166,40 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         flatInd = speck->posY * colSize + speck->posX;
         cout << "\033[" << rowSize + 3 << ";1H" << " flatInd: " << flatInd << " Position: " << speck->posX << "," << speck->posY;
-        if (world[flatInd] == '#' || world[flatInd] == '@') { //blocking collisions with borders and other particles 
-            //dunno if this warrants a specialized copy assignment operator
-            speck = tempPart; 
-            world[tempFlatInd] = '@';
+
+        //debugging trajectory 
+        cout << "\033[" << 3 << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
+        cout << "\033[" << 5 << ";" << colSize + 2 << "H" << "VELOCITY: " << speck->velX << ", " << speck->velY << "  ";
+        cout << "\033[" << 6 << ";" << colSize + 2 << "H" << "ACCEL   : " << speck->accX << ", " << speck->accY << "  ";
+
+        cout << "\033[" << 7 << ";" << colSize + 2 << "H" << "TERM POS: " << speck->posX << ", " << speck->posY << "  ";
+        cout << "\033[" << 8 << ";" << colSize + 2 << "H" << "COORD POS: " << speck->coordX << "," << speck->coordY << "  ";
+        cout << "\033[" << 9 << ";" << colSize + 2 << "H" << "ANGLE POS: " << speck->angle << "  ";
+
+
+        if (world[flatInd] == '#') { //blocking collisions with borders and other particles 
+            cout << "\033[" << rowSize + 4 << ";1H" << " ACCESSED COLLLISION HANDLER:  tempFlatInd: "<<tempFlatInd;
+            
+            speck = tempPart;   //dunno if this warrants a specialized copy assignment operator
+            world[tempFlatInd] = '@';            
             flatInd = tempFlatInd; 
         }
-        cout << "\033[" << speck->posX + 1 << ";" << speck->posY + 2 << "H" << world[tempFlatInd]; 
+
+        if (tempFlatInd != flatInd) {//clears path if particle has shifted positions 
+            world[tempFlatInd] = '.';
+
+            int tempPosX = tempFlatInd % colSize; 
+            int tempPosY = tempFlatInd / colSize; 
+
+            world[flatInd] = '@';
+            cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
+        }
+
+        cout << "\033[" << speck->posY + 2<< ";" << speck->posX + 1<< "H" << world[flatInd]; 
     }
 }
+
+
 
 void cleanDebug() {
 
