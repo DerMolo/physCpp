@@ -21,7 +21,7 @@ const float spatialUnit = 0.5; //meters
 float worldTime = 0.0;
 const float worldTick = 0.05;
 
-float bottomBound_Y = rowSize - (rowSize-1 + rowSize) * spatialUnit; 
+float lowerBound_Y = rowSize - (rowSize-1 + rowSize) * spatialUnit; 
 float upperBound_Y = rowSize - (rowSize)*spatialUnit; 
 
 float rightBound_X = 0;
@@ -95,7 +95,7 @@ void translateCoordinate(Particle*& speck) {
     speck->posY = (rowSize - speck->coordY) / spatialUnit - rowSize;
 }
 
-int posToInd(Particle*& speck) {
+int posToFlatInd(Particle*& speck) {
     return speck->posY * colSize + speck->posX;
 }
 
@@ -128,7 +128,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         Particle* tempPart = speck; 
         //clearing previous position: 
 
-        int flatInd = posToInd(speck);
+        int flatInd = posToFlatInd(speck);
         int tempFlatInd = flatInd; 
 
         //calculating new position: 
@@ -148,9 +148,13 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         //detecting collisions
         if (particleTracker.find(flatInd) == particleTracker.end()) {
-            if (world[flatInd] != '#') {
+            //if (world[flatInd] != '#') {
+            bool withinBounds = (speck->coordX < rightBound_X && speck->coordX > leftBound_X) && (speck->coordY < upperBound_Y && speck->coordY > lowerBound_Y);
+            if(withinBounds){
                 particleTracker[flatInd] = speck;
                 debugParticle(speck);
+                cout << "\033[" << 9 << ";" << colSize + 2 << "H" << string(50,' ');
+                cout << "\033[" << 10 << ";" << colSize + 2 << "H" << string(50,' ');
                 cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
                 cout << "";
             }
@@ -159,8 +163,9 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
                 BoundaryContacts.push_back(speck);
 
                 cout << "\033[" << 9 << ";" << colSize + 2 << "H" << " BOUNDARY CONTACT " << "  "<<speck->coordX<<","<<speck->coordY<<"  ";
-                cout << "\033[" << 10 << ";" << colSize + 2 << "H" << " LOWER BOUND " << bottomBound_Y << "  ";
+                cout << "\033[" << 10 << ";" << colSize + 2 << "H" << " LOWER BOUND " << lowerBound_Y << "  ";
                 cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
+                cout << "";
             }
         }
         else 
@@ -215,7 +220,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         }
 
         if (normalY == -1.0) {
-            depth = (speck->coordY + radius) - bottomBound_Y;
+            depth = (speck->coordY + radius) - lowerBound_Y;
         }
         else if (normalY == 1.0) {
             depth = radius - speck->coordY; // Assuming top spatial bound is 0
@@ -273,7 +278,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
     //drawing complete particle positions
     for (auto speck : tempParts) {
-        int worldInd = posToInd(speck);
+        int worldInd = posToFlatInd(speck);
         cout << "\033[" << speck->posY + 2 << ";" << speck->posX + 1 << "H" << world[worldInd];
     }
 }
