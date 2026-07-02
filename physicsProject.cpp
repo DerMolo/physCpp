@@ -17,15 +17,15 @@ const int colSize = 50;
 const int rowSize = 20;
 const float spatialUnit = 0.5; //meters 
 
-float upperWallCoord_Y = rowSize - rowSize * spatialUnit; 
-float lowerWallCoord_Y = rowSize - (rowSize - 1 + rowSize) * spatialUnit; 
-
-float leftWallCoord_X = 0;
-float rightWallCoord_X = (colSize - 1) * spatialUnit; 
-
 //GLOBAL CLOCK 
 float worldTime = 0.0;
 const float worldTick = 0.05;
+
+float bottomBound_Y = rowSize - (rowSize-1 + rowSize) * spatialUnit; 
+float upperBound_Y = rowSize - (rowSize)*spatialUnit; 
+
+float rightBound_X = 0;
+float leftBound_X = colSize - 1 * spatialUnit; 
 
 struct Particle {
     float mass; 
@@ -112,7 +112,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
     worldTime += worldTick; 
 
-    float dampeningFactor = 0.5; 
+    float dampeningFactor = 0.25; 
 
     //each spatial unit is .5m
 
@@ -148,11 +148,19 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         //detecting collisions
         if (particleTracker.find(flatInd) == particleTracker.end()) {
-            if (world[flatInd] != '#')
+            if (world[flatInd] != '#') {
                 particleTracker[flatInd] = speck;
+                debugParticle(speck);
+                cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
+                cout << "";
+            }
             else {
                 particleTracker[tempFlatInd] = speck;
                 BoundaryContacts.push_back(speck);
+
+                cout << "\033[" << 9 << ";" << colSize + 2 << "H" << " BOUNDARY CONTACT " << "  "<<speck->coordX<<","<<speck->coordY<<"  ";
+                cout << "\033[" << 10 << ";" << colSize + 2 << "H" << " LOWER BOUND " << bottomBound_Y << "  ";
+                cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
             }
         }
         else 
@@ -160,7 +168,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         debugParticle(speck);
 
-        if (tempFlatInd != flatInd) {//clears path if particle has shifted positions 
+        if (world[tempFlatInd] != world[flatInd] && world[flatInd] != '#') {//clears path if particle has shifted positions 
             world[tempFlatInd] = '.';
 
             int tempPosX = tempFlatInd % colSize; 
@@ -180,14 +188,14 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         float normalY = 0; 
 
         if (speck->posX >= colSize - 1)
-            normalX = 1;
-        else if (speck->posX <= 0)
             normalX = -1;
+        else if (speck->posX <= 0)
+            normalX = 1;
 
         if (speck->posY >= rowSize - 1)
-            normalY = -1;
-        else if (speck->posY <= 0)
             normalY = 1;
+        else if (speck->posY <= 0)
+            normalY = -1;
         
         speck->velX += -(1 + dampeningFactor) * (speck->velX * normalX) * normalX;
         speck->velY += -(1 + dampeningFactor) * (speck->velY * normalY) * normalY;
@@ -195,10 +203,29 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         //distance = (vx * nx) + (vy * ny)
         //radius = 1m
 
-        float depth =  1 - speck->velX * normalX + speck->velY * normalY; 
+        float radius = 1.0; 
+        float depth = 0.0;
 
-        speck->coordX += depth/2 * normalX; 
-        speck->coordY += depth/2 * normalY; 
+        // Calculate penetration based on which normal was triggered
+        if (normalX == -1.0) {
+            depth = (speck->coordX + radius) - rightBound_X;
+        }
+        else if (normalX == 1.0) {
+            depth = radius - speck->coordX; // Assuming left spatial bound is 0
+        }
+
+        if (normalY == -1.0) {
+            depth = (speck->coordY + radius) - bottomBound_Y;
+        }
+        else if (normalY == 1.0) {
+            depth = radius - speck->coordY; // Assuming top spatial bound is 0
+        }
+
+        // Apply correction (pushing out along the normal)
+        if (depth > 0.0) {
+            speck->coordX += depth * normalX;
+            speck->coordY += depth * normalY;
+        }
 
         //translating to terminal-based coordinate
         translateCoordinate(speck);
@@ -269,7 +296,7 @@ void clearParticleDebug() {
 
 int main()
 {
-    int targetFps = 10;
+    int targetFps = 30;
     chrono::duration<float> targetFrameTime(1.0f / targetFps);
 
     char world[rowSize][colSize];
