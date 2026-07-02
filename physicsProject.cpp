@@ -7,7 +7,7 @@
 #include<vector>
 #include<conio.h>
 
-#include <cmath>
+#include <numbers>
 
 using namespace std;
 
@@ -69,8 +69,6 @@ struct Particle {
     float gravity = -9.8; 
     float drag;
 
-    float angle; 
-
     //trajectory as determined by applied forces
     Direction dir; 
 
@@ -88,8 +86,6 @@ struct Particle {
 
          coordX = posX * spatialUnit;
          coordY = rowSize - (posY + rowSize) * spatialUnit;
-
-         angle = 0.0;
     }
 };
 
@@ -110,13 +106,14 @@ void printWorld(char* world) {
     }
 }
 
-void wallCollision(Particle*& speck, int& flatInd) { 
-    //effectively rebounds incoming velocity
+void debugParticle(Particle*& speck) {
+    //debugging trajectory 
+    cout << "\033[" << 3 << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
+    cout << "\033[" << 5 << ";" << colSize + 2 << "H" << "VELOCITY: " << speck->velX << ", " << speck->velY << "  ";
+    cout << "\033[" << 6 << ";" << colSize + 2 << "H" << "ACCEL   : " << speck->accX << ", " << speck->accY << "  ";
 
-    
-
-    //updating flatInd 
-    flatInd = speck->posY * colSize + speck->posX; 
+    cout << "\033[" << 7 << ";" << colSize + 2 << "H" << "TERM POS: " << speck->posX << ", " << speck->posY << "  ";
+    cout << "\033[" << 8 << ";" << colSize + 2 << "H" << "COORD POS: " << speck->coordX << "," << speck->coordY << "  ";
 }
 
 
@@ -133,15 +130,18 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
     worldTime += worldTick; 
 
+    float dampeningForce = 0.5; 
+
     //each spatial unit is .5m
 
-    //incrementally updating position for each particle (per function call)
+    //sequential calculations doesn't account for collision chains (if A->B & B->C, B never registers collision w/ C *and vice versa) 
 
-    //major flaw with sequential: particle trajectories must be calculated in parallel. 
-    // supposing two particles are enroute to collide, particle A might just collide with the un-processed particle B (thus breaking the simulation's logic) 
+    unordered_map<int, Particle*> particleTracker; //neccessary for tracking collisions
 
-    //For now, I'll just do this naive approach and see what happens.
-    for (auto speck : tempParts) {
+    vector<pair<Particle*, Particle*>> ParticleContacts; 
+    vector<Particle*> BoundaryContacts; 
+
+    for (auto speck : tempParts) { //calculcating intial trajectory & detecting collisions 
 
         Particle* tempPart = speck; 
         //clearing previous position: 
@@ -155,35 +155,32 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         speck->velY += (speck->accY + speck->gravity) * worldTick; 
         speck->velX += speck->accX;
         
-        speck->coordX += speck->velX * worldTick;
+        speck->coordX += speck->velX * worldTick; //spatially accurate 
         speck->coordY += speck->velY * worldTick;
 
-        speck->angle = atan2(speck->velY, speck->velX);
-
         //converting spatial coordinate to terminal coordinate 
-        speck->posX = speck->coordX / spatialUnit; 
+
+        speck->posX = speck->coordX / spatialUnit; //rendered position
         speck->posY = (rowSize - speck->coordY) / spatialUnit - rowSize;
 
         flatInd = speck->posY * colSize + speck->posX;
-        cout << "\033[" << rowSize + 3 << ";1H" << " flatInd: " << flatInd << " Position: " << speck->posX << "," << speck->posY;
 
-        //debugging trajectory 
-        cout << "\033[" << 3 << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
-        cout << "\033[" << 5 << ";" << colSize + 2 << "H" << "VELOCITY: " << speck->velX << ", " << speck->velY << "  ";
-        cout << "\033[" << 6 << ";" << colSize + 2 << "H" << "ACCEL   : " << speck->accX << ", " << speck->accY << "  ";
-
-        cout << "\033[" << 7 << ";" << colSize + 2 << "H" << "TERM POS: " << speck->posX << ", " << speck->posY << "  ";
-        cout << "\033[" << 8 << ";" << colSize + 2 << "H" << "COORD POS: " << speck->coordX << "," << speck->coordY << "  ";
-        cout << "\033[" << 9 << ";" << colSize + 2 << "H" << "ANGLE POS: " << speck->angle << "  ";
-
-
-        if (world[flatInd] == '#') { //blocking collisions with borders and other particles 
-            cout << "\033[" << rowSize + 4 << ";1H" << " ACCESSED COLLLISION HANDLER:  tempFlatInd: "<<tempFlatInd;
-            
-            speck = tempPart;   //dunno if this warrants a specialized copy assignment operator
-            world[tempFlatInd] = '@';            
-            flatInd = tempFlatInd; 
+        //detecting collisions
+        if (particleTracker.find(flatInd) == particleTracker.end()) {
+            if (world[flatInd] != '#')
+                particleTracker[flatInd] = speck;
+            else { //colliding particles don't update the frame buffer (i.e. world[tempInd]) 
+                particleTracker[tempFlatInd] = speck;
+                flatInd = tempFlatInd; 
+                BoundaryContacts.push_back(speck);
+            }
         }
+        else {
+            ParticleContacts.push_back({ speck,particleTracker[flatInd] });
+            flatInd = tempFlatInd;
+        }
+
+        debugParticle(speck);
 
         if (tempFlatInd != flatInd) {//clears path if particle has shifted positions 
             world[tempFlatInd] = '.';
@@ -192,17 +189,77 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
             int tempPosY = tempFlatInd / colSize; 
 
             world[flatInd] = '@';
-            cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
+            //cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
         }
 
-        cout << "\033[" << speck->posY + 2<< ";" << speck->posX + 1<< "H" << world[flatInd]; 
+        //cout << "\033[" << speck->posY + 2<< ";" << speck->posX + 1<< "H" << world[flatInd]; 
+    }
+
+    //handling wall collisions
+    for(auto speck: BoundaryContacts){
+
+        float normalX = 0;
+        float normalY = 0; 
+
+        if (speck->posX >= colSize - 1)
+            normalX = 1;
+        else if (speck->posX <= 0)
+            normalX = -1;
+
+        if (speck->posY >= rowSize - 1)
+            normalY = -1;
+        else if (speck->posY <= 0)
+            normalY = 1;
+        
+        speck->velX += -(1 + dampeningForce) * (speck->velX * normalX) * normalX;
+        speck->velY += -(1 + dampeningForce) * (speck->velY * normalY) * normalY;
+
+        debugParticle(speck);
+
+        
+    }
+
+    //handling particle-to-particle collisions 
+    for (auto speckPair : ParticleContacts) {
+        Particle* A = speckPair.first; 
+        Particle* B = speckPair.second;
+
+        float Dx = B->coordX - A->coordX;
+        float Dy = B->coordY - A->coordY; 
+        float length = sqrt(Dx * Dx + Dy * Dy);
+
+        float normalX = Dx / length; 
+        float normalY = Dy / length; 
+
+        float vABx = A->velX - B->velX;
+        float vABy = A->velY - B->velY;
+
+        float impulseX = ((-1 + dampeningForce) * (vABx * normalX))/( 1/A->mass + 1/B->mass);
+        float impulseY = ((-1 + dampeningForce) * (vABy * normalY)) / (1 / A->mass + 1 / B->mass);
+
+        A->velX += (impulseX / A->mass) * normalX;
+        B->velX += (impulseX / B->mass) * normalX;
+
+        A->velY += (impulseY / A->mass) * normalY;
+        B->velY += (impulseY / B->mass) * normalY;
+
+        float overlap = (1 + 1) - length; //radiusA + radiusB - length
+        float correction = overlap / 2.0;
+
+        A->coordX -= correction * normalX; 
+        A->coordY -= correction * normalY; 
+
+        B->coordX += correction * normalX;
+        B->coordY += correction * normalY;
+    }
+
+    //drawing complete particle positions
+    for (auto speck : tempParts) {
+
     }
 }
 
-
-
 void cleanDebug() {
-
     for(int i = 3;i<=8;i++)
         cout << "\033[" << i << ";" << colSize + 2 << "H" << string(30, ' ');
 
@@ -211,6 +268,11 @@ void cleanDebug() {
     for(int i = 0;i<=6;i++)
         cout << "\033[" << base + i<< ";" << 1 << "H" << string(50, ' ');
 
+}
+
+void clearParticleDebug() {
+    for (int i = 3; i <= 8; i++)
+        cout << "\033[" << i << ";" << colSize + 2 << "H" << string(30, ' ');
 }
 
 int main()
@@ -232,12 +294,12 @@ int main()
     }
 
     /*
-    objective: 
-    allowing the user to interactively place particles (then run the simulation) 
+    basic objective: 
+    allowing the user to place particles (then run the simulation) 
 
     later objective: 
     - allowing users to select pre-packaged particle shapes and insert them into the scene 
-    - allowing the user to apply certain scenarios like: vortex, windiness, explosions, 
+    - allowing the user to apply certain scenarios like: vortex, windiness, explosion, 
     */
 
     printWorld(*world); 
@@ -275,12 +337,11 @@ int main()
                     world[userY][userX] = '@';
                     //rowSize - (userY + rowSize) : converting from terminal-based coordinates to 
 
-                    Particle* temp = new Particle(userX, userY, 5.0);
-
+                    Particle* temp = new Particle(userX, userY, 1.0);
                     spawnedParticles.push_back(temp);
                     
                     particleTracker[flatInd] = temp; //tracking particle 
-                }
+                } //spawning overlapping particles is prohibited
             }
 
             if (tolower(userIn) == 'e')  //exiting setup phase 
@@ -337,30 +398,16 @@ int main()
 
             if (particleTracker.find(flatInd) != particleTracker.end()) {
                 Particle* temp = particleTracker[flatInd]; 
-                cout << "\033[" << 3 << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
-                cout << "\033[" << 4 << ";" << colSize + 2 << "H" << "POSITION: "<<temp->posX<<", "<<temp->posY;
-                cout << "\033[" << 5 << ";" << colSize + 2 << "H" << "MASS: "<<temp->mass;
-                cout << "\033[" << 6 << ";" << colSize + 2 << "H" << "FLAT INDEX: " << flatInd;
 
-                cout << "\033[" << 7 << ";" << colSize + 2 << "H" << "Position is already reserved!";
-                cout << "\033[" << 8 << ";" << colSize + 2 << "H" << "COORD DATA: " << temp->coordX<<","<<temp->coordY<<" ";
+                debugParticle(temp);
             }
-            else{ //clear the previous debug info 
-                cout << "\033[" << 3 << ";" << colSize + 2 << "H" << string(30, ' ');
-                cout << "\033[" << 4 << ";" << colSize + 2 << "H" << string(30, ' ');
-                cout << "\033[" << 5 << ";" << colSize + 2 << "H" << string(30, ' ');
-                cout << "\033[" << 6 << ";" << colSize + 2 << "H" << string(30, ' ');
+            else //clear the previous debug info 
+                clearParticleDebug();
 
-                cout << "\033[" << 7 << ";" << colSize + 2 << "H" << string(30, ' ');
-                cout << "\033[" << 8 << ";" << colSize + 2 << "H" << string(30, ' ');
-
-            }
             // "\033[s" to save cursor position *only for windows terminals 
             // "\033[u" to restore cursor position 
 
             cout << "\033[" << trueUserY << ";" << trueUserX << "H" << "\033[s";
-
-            //debugIndex = debugIndex+1 > 22 ? 17 : debugIndex + 1;
         }
         int base = rowSize + 5;
         cout << "\033[" << base << ";" << 1 << "H" << "TRUE POSITION: " << trueUserX << "," << trueUserY << " ";
@@ -370,7 +417,6 @@ int main()
                            
         cout << "\033[" << base + 3 << ";" << 1 << "H" << "SIZE OF particleTracker: "<<particleTracker.size();
         cout << "\033[" << base + 4 << ";" << 1 << "H" << "SIZE OF spawnedParticles: " << spawnedParticles.size();
-
 
         cout << "\033[u"; //restore cursor to user-inputted coordinate
     };
