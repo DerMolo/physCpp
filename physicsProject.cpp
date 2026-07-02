@@ -17,38 +17,15 @@ const int colSize = 50;
 const int rowSize = 20;
 const float spatialUnit = 0.5; //meters 
 
+float upperWallCoord_Y = rowSize - rowSize * spatialUnit; 
+float lowerWallCoord_Y = rowSize - (rowSize - 1 + rowSize) * spatialUnit; 
+
+float leftWallCoord_X = 0;
+float rightWallCoord_X = (colSize - 1) * spatialUnit; 
 
 //GLOBAL CLOCK 
 float worldTime = 0.0;
 const float worldTick = 0.05;
-
-
-enum class Direction{ //may be unnecessary 
-    NEUTRAL,//NULL
-    LEFT,//180
-    RIGHT,//0
-    UP,//90
-    DOWN,//270
-    U_RIGHT,//45
-    U_LEFT,//135
-    D_RIGHT,//315
-    D_LEFT//225
-};
-
-//struct Force { 
-//    float accelX; 
-//    float accelY; 
-//
-//    float mass; 
-//    float angle; 
-//    
-//    Force(float accX, float accY, float m, float ang) {
-//        accelX = accX; 
-//        accelY = accY; 
-//        mass = m; 
-//        angle = ang; 
-//    }
-//};
 
 struct Particle {
     float mass; 
@@ -68,9 +45,6 @@ struct Particle {
     //global forces 
     float gravity = -9.8; 
     float drag;
-
-    //trajectory as determined by applied forces
-    Direction dir; 
 
     Particle(int x, int y, float m) {
          mass = m;
@@ -176,16 +150,13 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         if (particleTracker.find(flatInd) == particleTracker.end()) {
             if (world[flatInd] != '#')
                 particleTracker[flatInd] = speck;
-            else { //colliding particles don't update the frame buffer (i.e. world[tempInd]) 
+            else {
                 particleTracker[tempFlatInd] = speck;
-                flatInd = tempFlatInd; 
                 BoundaryContacts.push_back(speck);
             }
         }
-        else {
+        else 
             ParticleContacts.push_back({ speck,particleTracker[flatInd] });
-            flatInd = tempFlatInd;
-        }
 
         debugParticle(speck);
 
@@ -196,7 +167,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
             int tempPosY = tempFlatInd / colSize; 
 
             world[flatInd] = '@';
-            //cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
+            cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
         }
 
         //cout << "\033[" << speck->posY + 2<< ";" << speck->posX + 1<< "H" << world[flatInd]; 
@@ -221,10 +192,9 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         speck->velX += -(1 + dampeningFactor) * (speck->velX * normalX) * normalX;
         speck->velY += -(1 + dampeningFactor) * (speck->velY * normalY) * normalY;
 
-        debugParticle(speck);
-
         //distance = (vx * nx) + (vy * ny)
         //radius = 1m
+
         float depth =  1 - speck->velX * normalX + speck->velY * normalY; 
 
         speck->coordX += depth/2 * normalX; 
@@ -232,6 +202,8 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         //translating to terminal-based coordinate
         translateCoordinate(speck);
+
+        debugParticle(speck);
     }
 
     //handling particle-to-particle collisions 
@@ -297,7 +269,7 @@ void clearParticleDebug() {
 
 int main()
 {
-    int targetFps = 30;
+    int targetFps = 10;
     chrono::duration<float> targetFrameTime(1.0f / targetFps);
 
     char world[rowSize][colSize];
