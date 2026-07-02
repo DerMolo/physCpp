@@ -116,6 +116,14 @@ void debugParticle(Particle*& speck) {
     cout << "\033[" << 8 << ";" << colSize + 2 << "H" << "COORD POS: " << speck->coordX << "," << speck->coordY << "  ";
 }
 
+void translateCoordinate(Particle*& speck) {
+    speck->posX = speck->coordX / spatialUnit; //rendered position
+    speck->posY = (rowSize - speck->coordY) / spatialUnit - rowSize;
+}
+
+int posToInd(Particle*& speck) {
+    return speck->posY * colSize + speck->posX;
+}
 
 void renderWorld(char* world, vector<Particle*> tempParts) { 
 
@@ -130,7 +138,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
     worldTime += worldTick; 
 
-    float dampeningForce = 0.5; 
+    float dampeningFactor = 0.5; 
 
     //each spatial unit is .5m
 
@@ -146,7 +154,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         Particle* tempPart = speck; 
         //clearing previous position: 
 
-        int flatInd = speck->posY * colSize + speck->posX; 
+        int flatInd = posToInd(speck);
         int tempFlatInd = flatInd; 
 
         //calculating new position: 
@@ -160,8 +168,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         //converting spatial coordinate to terminal coordinate 
 
-        speck->posX = speck->coordX / spatialUnit; //rendered position
-        speck->posY = (rowSize - speck->coordY) / spatialUnit - rowSize;
+        translateCoordinate(speck);
 
         flatInd = speck->posY * colSize + speck->posX;
 
@@ -211,12 +218,20 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         else if (speck->posY <= 0)
             normalY = 1;
         
-        speck->velX += -(1 + dampeningForce) * (speck->velX * normalX) * normalX;
-        speck->velY += -(1 + dampeningForce) * (speck->velY * normalY) * normalY;
+        speck->velX += -(1 + dampeningFactor) * (speck->velX * normalX) * normalX;
+        speck->velY += -(1 + dampeningFactor) * (speck->velY * normalY) * normalY;
 
         debugParticle(speck);
 
-        
+        //distance = (vx * nx) + (vy * ny)
+        //radius = 1m
+        float depth =  1 - speck->velX * normalX + speck->velY * normalY; 
+
+        speck->coordX += depth/2 * normalX; 
+        speck->coordY += depth/2 * normalY; 
+
+        //translating to terminal-based coordinate
+        translateCoordinate(speck);
     }
 
     //handling particle-to-particle collisions 
@@ -234,8 +249,8 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         float vABx = A->velX - B->velX;
         float vABy = A->velY - B->velY;
 
-        float impulseX = ((-1 + dampeningForce) * (vABx * normalX))/( 1/A->mass + 1/B->mass);
-        float impulseY = ((-1 + dampeningForce) * (vABy * normalY)) / (1 / A->mass + 1 / B->mass);
+        float impulseX = ((-1 + dampeningFactor) * (vABx * normalX))/( 1/A->mass + 1/B->mass);
+        float impulseY = ((-1 + dampeningFactor) * (vABy * normalY)) / (1 / A->mass + 1 / B->mass);
 
         A->velX += (impulseX / A->mass) * normalX;
         B->velX += (impulseX / B->mass) * normalX;
@@ -251,11 +266,16 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         B->coordX += correction * normalX;
         B->coordY += correction * normalY;
+
+        //translating to terminal-based coordinate
+        translateCoordinate(A);
+        translateCoordinate(B);
     }
 
     //drawing complete particle positions
     for (auto speck : tempParts) {
-
+        int worldInd = posToInd(speck);
+        cout << "\033[" << speck->posY + 2 << ";" << speck->posX + 1 << "H" << world[worldInd];
     }
 }
 
