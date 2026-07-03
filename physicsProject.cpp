@@ -24,8 +24,8 @@ const float worldTick = 0.016;
 float lowerBound_Y = rowSize - (rowSize-1 + rowSize) * spatialUnit; 
 float upperBound_Y = rowSize - (rowSize)*spatialUnit; 
 
-float rightBound_X = 0;
-float leftBound_X = colSize - 1 * spatialUnit; 
+float leftBound_X = 0;
+float rightBound_X = (colSize - 1) * spatialUnit;
 
 struct Particle {
     float mass; 
@@ -49,7 +49,7 @@ struct Particle {
     Particle(int x, int y, float m) {
          mass = m;
 
-         velX = 0; 
+         velX = 10.0; 
          velY = 0;
 
          accX = 0;
@@ -125,7 +125,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
     vector<Particle*> BoundaryContacts; 
 
     int debugIndex = 0;
-    int targetIndex = 7;
+    int targetIndex = 0;
 
     cout << "\033[" << 4 << ";" << colSize + 2 << "H" << "NUMBER OF PARTICLES : "<<tempParts.size();
 
@@ -158,33 +158,35 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
             bool withinBounds = (speck->coordX < rightBound_X && speck->coordX > leftBound_X) && (speck->coordY < upperBound_Y && speck->coordY > lowerBound_Y);
             if(withinBounds){
                 particleTracker[flatInd] = speck;
-                //if(debugIndex == targetIndex) {
+                if(debugIndex == targetIndex) {
                     debugParticle(speck);
                     cout << "\033[" << 9 << ";" << colSize + 2 << "H" << string(50, ' ');
                     cout << "\033[" << 10 << ";" << colSize + 2 << "H" << string(50, ' ');
-                    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
+                    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " RIGHT BOUND " << rightBound_X << "  ";
+                    cout << "\033[" << 12 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
                     cout << "";
-                //}
+                }
             }
             else {
                 particleTracker[tempFlatInd] = speck;
                 BoundaryContacts.push_back(speck);
 
-                //if(debugIndex == targetIndex){
+                if(debugIndex == targetIndex){
                     debugParticle(speck);
                     cout << "\033[" << 9 << ";" << colSize + 2 << "H" << " BOUNDARY CONTACT " << "  " << speck->coordX << "," << speck->coordY << "  ";
                     cout << "\033[" << 10 << ";" << colSize + 2 << "H" << " LOWER BOUND " << lowerBound_Y << "  ";
-                    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
-                    cout << "\033[" << 12 << ";" << colSize + 2 << "H" << " flatInd: " << flatInd << "   " << " tempFlatInd: " << tempFlatInd << "   ";
+                    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " RIGHT BOUND " << rightBound_X << "  ";
+                    cout << "\033[" << 12 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
+                    cout << "\033[" << 13 << ";" << colSize + 2 << "H" << " flatInd: " << flatInd << "   " << " tempFlatInd: " << tempFlatInd << "   ";
                     cout << "";
-                //}
+                }
 
             }
         }
         else 
             ParticleContacts.push_back({ speck,particleTracker[flatInd] });
 
-        //if(debugIndex == targetIndex)
+        if(debugIndex == targetIndex)
             debugParticle(speck);
 
         if (tempFlatInd != flatInd && world[tempFlatInd] != world[flatInd] && world[flatInd] != '#') {//clears path if particle has shifted positions 
@@ -250,7 +252,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         //translating to terminal-based coordinate
         translateCoordinate(speck);
 
-        //if(debugIndex == targetIndex)
+        if(debugIndex == targetIndex)
             debugParticle(speck);
 
         debugIndex++;
@@ -319,7 +321,7 @@ void clearParticleDebug() {
 
 int main()
 {
-    int targetFps = 30;
+    int targetFps = 60;
     chrono::duration<float> targetFrameTime(1.0f / targetFps);
 
     char world[rowSize][colSize];
