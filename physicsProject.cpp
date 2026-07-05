@@ -44,7 +44,8 @@ struct Particle {
     
     //global forces 
     float gravity = -9.8; 
-    float drag;
+    float dragY;
+    float dragX; 
 
     Particle(int x, int y, float m) {
          mass = m;
@@ -91,7 +92,7 @@ void debugParticle(Particle*& speck) {
     cout << "\033[" << 8 << ";" << colSize + 2 << "H" << "COORD POS: " << speck->coordX << "," << speck->coordY << "  ";
 }
 
-void translateCoordinate(Particle*& speck) {
+void coordToPos(Particle*& speck) {
     speck->posX = speck->coordX / spatialUnit; //rendered position
     speck->posY = (rowSize - speck->coordY) / spatialUnit - rowSize;
 }
@@ -140,7 +141,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         //calculating new position: 
         //euler's update rule: 
 
-        speck->velY += (speck->accY + speck->gravity) * worldTick; 
+        speck->velY += (speck->accY + speck->gravity + speck->drag) * worldTick; 
         speck->velX += speck->accX;
         
         speck->coordX += speck->velX * worldTick; //spatially accurate 
@@ -148,7 +149,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         //converting spatial coordinate to terminal coordinate 
 
-        translateCoordinate(speck);
+        coordToPos(speck);
 
         flatInd = speck->posY * colSize + speck->posX;
 
@@ -189,7 +190,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         if(debugIndex == targetIndex)
             debugParticle(speck);
 
-        if (tempFlatInd != flatInd && world[flatInd] != '#') {//clears path if particle has shifted positions 
+        if (tempFlatInd != flatInd) {//clears path if particle has shifted positions 
             world[tempFlatInd] = '.';
 
             int tempPosX = tempFlatInd % colSize; 
@@ -250,7 +251,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         }
 
         //translating to terminal-based coordinate
-        translateCoordinate(speck);
+        coordToPos(speck);
 
         if(debugIndex == targetIndex)
             debugParticle(speck);
@@ -292,8 +293,8 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         B->coordY += correction * normalY;
 
         //translating to terminal-based coordinate
-        translateCoordinate(A);
-        translateCoordinate(B);
+        coordToPos(A);
+        coordToPos(B);
     }
 
     //drawing complete particle positions
