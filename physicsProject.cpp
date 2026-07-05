@@ -49,7 +49,7 @@ struct Particle {
     Particle(int x, int y, float m) {
          mass = m;
 
-         velX = 10.0; 
+         velX = 13.0; 
          velY = 0;
 
          accX = 0;
@@ -189,7 +189,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         if(debugIndex == targetIndex)
             debugParticle(speck);
 
-        if (tempFlatInd != flatInd && world[tempFlatInd] != world[flatInd] && world[flatInd] != '#') {//clears path if particle has shifted positions 
+        if (tempFlatInd != flatInd && world[flatInd] != '#') {//clears path if particle has shifted positions 
             world[tempFlatInd] = '.';
 
             int tempPosX = tempFlatInd % colSize; 
