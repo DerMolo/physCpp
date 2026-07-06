@@ -50,11 +50,14 @@ struct Particle {
     Particle(int x, int y, float m) {
          mass = m;
 
-         velX = 13.0; 
+         velX = 50050.0; 
          velY = 0;
 
          accX = 0;
          accY = 0;
+
+         dragY = 0; 
+         dragX = 0; 
 
          posX = x; 
          posY = y;
@@ -141,8 +144,8 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         //calculating new position: 
         //euler's update rule: 
 
-        speck->velY += (speck->accY + speck->gravity + speck->drag) * worldTick; 
-        speck->velX += speck->accX;
+        speck->velY += (speck->accY + speck->gravity + speck->dragY) * worldTick; 
+        speck->velX += (speck->accX + speck->dragX) * worldTick;
         
         speck->coordX += speck->velX * worldTick; //spatially accurate 
         speck->coordY += speck->velY * worldTick;
