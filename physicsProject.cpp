@@ -24,7 +24,7 @@ const float worldTick = 0.016;
 float lowerBound_Y = rowSize - (rowSize-1 + rowSize) * spatialUnit; 
 float upperBound_Y = rowSize - (rowSize)*spatialUnit; 
 
-float leftBound_X = 0;
+float leftBound_X = 1;
 float rightBound_X = (colSize - 1) * spatialUnit;
 
 struct Particle {
@@ -50,7 +50,7 @@ struct Particle {
     Particle(int x, int y, float m) {
          mass = m;
 
-         velX = 50050.0; 
+         velX = -5000; 
          velY = 0;
 
          accX = 0;
@@ -166,7 +166,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
                     debugParticle(speck);
                     cout << "\033[" << 9 << ";" << colSize + 2 << "H" << string(50, ' ');
                     cout << "\033[" << 10 << ";" << colSize + 2 << "H" << string(50, ' ');
-                    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " RIGHT BOUND " << rightBound_X << "  ";
+                    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " RIGHT BOUND " << rightBound_X << "  " << "LEFT BOUND: "<<leftBound_X;
                     cout << "\033[" << 12 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
                     cout << "";
                 }
