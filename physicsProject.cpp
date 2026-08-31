@@ -28,6 +28,7 @@ float leftBound_X = 1;
 float rightBound_X = (colSize - 1) * spatialUnit;
 
 struct Particle {
+    int id = 0;
     float mass; 
 
     float velX; 
@@ -47,10 +48,11 @@ struct Particle {
     float dragY;
     float dragX; 
 
-    Particle(int x, int y, float m) {
+    Particle(int x, int y, float m, int id) {
+         this->id = id;
          mass = m;
 
-         velX = -5000; 
+         velX = 100; 
          velY = 0;
 
          accX = 0;
@@ -86,13 +88,17 @@ void printWorld(char* world) {
 
 void debugParticle(Particle*& speck) {
     //debugging trajectory 
-    cout << "\033[" << 3 << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
- 
-    cout << "\033[" << 5 << ";" << colSize + 2 << "H" << "VELOCITY: " << speck->velX << ", " << speck->velY << "  ";
-    cout << "\033[" << 6 << ";" << colSize + 2 << "H" << "ACCEL   : " << speck->accX << ", " << speck->accY << "  ";
+    int base = 3; 
+    cout << "\033[" << base << ";" << colSize + 2 << "H" << "PARTICLE DATA: ";
+                       
+    cout << "\033[" << base+1 << ";" << colSize + 2 << "H" << "VELOCITY: " << speck->velX << ", " << speck->velY << "  ";
+    cout << "\033[" << base+2 << ";" << colSize + 2 << "H" << "ACCEL   : " << speck->accX << ", " << speck->accY << "  ";
+                       
+    cout << "\033[" << base+3 << ";" << colSize + 2 << "H" << "TERM POS: " << speck->posX << ", " << speck->posY << "  ";
+    cout << "\033[" << base+4 << ";" << colSize + 2 << "H" << "COORD POS: " << speck->coordX << "," << speck->coordY << "  ";
 
-    cout << "\033[" << 7 << ";" << colSize + 2 << "H" << "TERM POS: " << speck->posX << ", " << speck->posY << "  ";
-    cout << "\033[" << 8 << ";" << colSize + 2 << "H" << "COORD POS: " << speck->coordX << "," << speck->coordY << "  ";
+    cout << "\033[" << base + 5 << ";" << colSize + 2 << "H" << "PARTICLE ID: " << speck->id;
+    //cout << "\033[" << base + 6 << ";" << colSize + 2 << "H" << "Simulated bounds (x,y): " << leftBound_X << ", " << rightBound_X << "  " << upperBound_Y << ", " << lowerBound_Y;
 }
 
 void coordToPos(Particle*& speck) {
@@ -143,7 +149,8 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         //calculating new position: 
         //euler's update rule: 
-
+        
+        //worldTick = .016 
         speck->velY += (speck->accY + speck->gravity + speck->dragY) * worldTick; 
         speck->velX += (speck->accX + speck->dragX) * worldTick;
         
@@ -155,11 +162,11 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         coordToPos(speck);
 
         flatInd = speck->posY * colSize + speck->posX;
+        bool withinBounds = (speck->coordX < rightBound_X && speck->coordX > leftBound_X) && (speck->coordY < upperBound_Y && speck->coordY > lowerBound_Y);
 
         //detecting collisions
         if (particleTracker.find(flatInd) == particleTracker.end()) {
             //if (world[flatInd] != '#') {
-            bool withinBounds = (speck->coordX < rightBound_X && speck->coordX > leftBound_X) && (speck->coordY < upperBound_Y && speck->coordY > lowerBound_Y);
             if(withinBounds){
                 particleTracker[flatInd] = speck;
                 if(debugIndex == targetIndex) {
@@ -193,7 +200,9 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         if(debugIndex == targetIndex)
             debugParticle(speck);
 
-        if (tempFlatInd != flatInd) {//clears path if particle has shifted positions 
+        //if (tempFlatInd != flatInd) {//clears path if particle has shifted positions 
+            //maybe this conditional is the source of unpredictable position updating 
+            //let's assume they should be updated all the time? 
             world[tempFlatInd] = '.';
 
             int tempPosX = tempFlatInd % colSize; 
@@ -201,7 +210,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
             world[flatInd] = '@';
             cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
-        }
+        //}
 
         debugIndex++;
     }
@@ -368,7 +377,7 @@ int main()
     unordered_map<int, Particle*> particleTracker;
 
     int flatInd = userY * colSize + userX;
-
+    int id = 0;
     while (true) { //SETUP PHASE 
 
         int trueUserX = userX + 1; 
@@ -385,7 +394,8 @@ int main()
                     world[userY][userX] = '@';
                     //rowSize - (userY + rowSize) : converting from terminal-based coordinates to 
 
-                    Particle* temp = new Particle(userX, userY, 1.0);
+                    Particle* temp = new Particle(userX, userY, 1.0, id);
+                    id++;
                     spawnedParticles.push_back(temp);
                     
                     particleTracker[flatInd] = temp; //tracking particle 
@@ -473,6 +483,7 @@ int main()
 
     int frameCount = 0;
 
+    //GAME LOOP 
     while (true) {
         auto frameStart = chrono::steady_clock::now();
 
