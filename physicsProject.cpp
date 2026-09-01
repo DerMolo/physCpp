@@ -106,6 +106,14 @@ void coordToPos(Particle*& speck) {
     speck->posY = (rowSize - speck->coordY) / spatialUnit - rowSize;
 }
 
+
+inline int coordToPosX(int x) {
+    return x / spatialUnit;  
+}
+inline int coordToPosY(int y) {
+    return (rowSize - y) / spatialUnit - rowSize;
+}
+
 int posToFlatInd(Particle*& speck) {
     return speck->posY * colSize + speck->posX;
 }
@@ -171,10 +179,12 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
                 particleTracker[flatInd] = speck;
                 if(debugIndex == targetIndex) {
                     debugParticle(speck);
-                    cout << "\033[" << 9 << ";" << colSize + 2 << "H" << string(50, ' ');
-                    cout << "\033[" << 10 << ";" << colSize + 2 << "H" << string(50, ' ');
-                    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " RIGHT BOUND " << rightBound_X << "  " << "LEFT BOUND: "<<leftBound_X;
-                    cout << "\033[" << 12 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
+                    int base = 9; 
+                    cout << "\033[" << base<< ";" << colSize + 2 << "H" << string(50, ' ');
+                    cout << "\033[" << base+1 << ";" << colSize + 2 << "H" << string(50, ' ');
+                    cout << "\033[" << base+2 << ";" << colSize + 2 << "H" << " (simulated coord) RIGHT BOUND " << rightBound_X << "  " << "LEFT BOUND: "<<leftBound_X;
+                    cout << "\033[" << base+3 << ";" << colSize + 2 << "H" << " (terminal coord) RIGHT BOUND " << coordToPosX( rightBound_X )<< "    " << "LEFT BOUND: " << coordToPosX(leftBound_X);
+                    cout << "\033[" << base+4 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
                     cout << "";
                 }
             }
@@ -182,15 +192,15 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
                 particleTracker[tempFlatInd] = speck;
                 BoundaryContacts.push_back(speck);
 
-                if(debugIndex == targetIndex){
-                    debugParticle(speck);
-                    cout << "\033[" << 9 << ";" << colSize + 2 << "H" << " BOUNDARY CONTACT " << "  " << speck->coordX << "," << speck->coordY << "  ";
-                    cout << "\033[" << 10 << ";" << colSize + 2 << "H" << " LOWER BOUND " << lowerBound_Y << "  ";
-                    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " RIGHT BOUND " << rightBound_X << "  ";
-                    cout << "\033[" << 12 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
-                    cout << "\033[" << 13 << ";" << colSize + 2 << "H" << " flatInd: " << flatInd << "   " << " tempFlatInd: " << tempFlatInd << "   ";
-                    cout << "";
-                }
+                //if(debugIndex == targetIndex){
+                //    debugParticle(speck);
+                //    cout << "\033[" << 9 << ";" << colSize + 2 << "H" << " BOUNDARY CONTACT " << "  " << speck->coordX << "," << speck->coordY << "  ";
+                //    cout << "\033[" << 10 << ";" << colSize + 2 << "H" << " LOWER BOUND " << lowerBound_Y << "  ";
+                //    cout << "\033[" << 11 << ";" << colSize + 2 << "H" << " RIGHT BOUND " << rightBound_X << "  ";
+                //    cout << "\033[" << 12 << ";" << colSize + 2 << "H" << " world[flatInd] " << world[flatInd] << "   " << " world[tempFlatInd]: " << world[tempFlatInd] << "   ";
+                //    cout << "\033[" << 13 << ";" << colSize + 2 << "H" << " flatInd: " << flatInd << "   " << " tempFlatInd: " << tempFlatInd << "   ";
+                //    cout << "";
+                //}
 
             }
         }
@@ -312,7 +322,9 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
     //drawing complete particle positions
     for (auto speck : tempParts) {
         int worldInd = posToFlatInd(speck);
-        cout << "\033[" << speck->posY + 2 << ";" << speck->posX + 1 << "H" << world[worldInd];
+        bool withinBounds = (speck->coordX < rightBound_X && speck->coordX > leftBound_X) && (speck->coordY < upperBound_Y && speck->coordY > lowerBound_Y);
+        if(withinBounds)
+            cout << "\033[" << speck->posY + 2 << ";" << speck->posX + 1 << "H" << world[worldInd];
     }
 }
 
