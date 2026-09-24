@@ -21,8 +21,9 @@ const float spatialUnit = 0.5; //meters
 float worldTime = 0.0;
 const float worldTick = 0.016;
 
-float lowerBound_Y = rowSize - (rowSize-1 + rowSize) * spatialUnit; 
-float upperBound_Y = rowSize - (rowSize)*spatialUnit; 
+//float lowerBound_Y = rowSize - (rowSize-1 + rowSize) * spatialUnit; 
+float lowerBound_Y = spatialUnit;
+float upperBound_Y = (rowSize)*spatialUnit - spatialUnit; 
 
 float leftBound_X = 1;
 float rightBound_X = (colSize - 1) * spatialUnit;
@@ -44,7 +45,8 @@ struct Particle {
     int posY; 
     
     //global forces 
-    float gravity = -9.8; 
+    //float gravity = -9.8; 
+    float gravity = 0; 
     float dragY;
     float dragX; 
 
@@ -53,7 +55,7 @@ struct Particle {
          mass = m;
 
          velX = 100; 
-         velY = 0;
+         velY = 5;
 
          accX = 0;
          accY = 0;
@@ -61,9 +63,11 @@ struct Particle {
          dragY = 0; 
          dragX = 0; 
 
+         //terminal coordinates 
          posX = x; 
          posY = y;
 
+         //simulated coordinates 
          coordX = posX * spatialUnit;
          coordY = rowSize - (posY + rowSize) * spatialUnit;
     }
@@ -214,7 +218,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         debugIndex++;
     }
 
-    debugIndex = 0;
+
     //handling wall collisions
     for(auto speck: BoundaryContacts){
 
@@ -264,8 +268,11 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         //translating to terminal-based coordinate
         coordToPos(speck);
 
-        if(debugIndex == targetIndex)
+       // if (debugIndex == targetIndex) {
             debugParticle(speck);
+            cout << "\033[" << 24 << ";" << colSize + 2 << "H" << "NormalY:  " << normalY << " depth: "<<depth;
+
+        //}
 
         debugIndex++;
     }
