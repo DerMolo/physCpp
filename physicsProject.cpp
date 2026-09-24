@@ -161,13 +161,13 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
         coordToPos(speck);
 
-        flatInd = speck->posY * colSize + speck->posX;
+        flatInd = posToFlatInd(speck);
         bool withinBounds = (speck->coordX < rightBound_X && speck->coordX > leftBound_X) && (speck->coordY < upperBound_Y && speck->coordY > lowerBound_Y);
 
         //detecting collisions
         if (particleTracker.find(flatInd) == particleTracker.end()) {
             //if (world[flatInd] != '#') {
-            if(withinBounds){
+            if(withinBounds){ 
                 particleTracker[flatInd] = speck;
                 if(debugIndex == targetIndex) {
                     debugParticle(speck);
@@ -178,11 +178,11 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
                     cout << "";
                 }
             }
-            else {
+            else { //mapping terminal coordinate of intersecting particles to boundaryContact hashmap
                 particleTracker[tempFlatInd] = speck;
                 BoundaryContacts.push_back(speck);
 
-                if(debugIndex == targetIndex){
+                if(debugIndex == targetIndex){ 
                     debugParticle(speck);
                     cout << "\033[" << 9 << ";" << colSize + 2 << "H" << " BOUNDARY CONTACT " << "  " << speck->coordX << "," << speck->coordY << "  ";
                     cout << "\033[" << 10 << ";" << colSize + 2 << "H" << " LOWER BOUND " << lowerBound_Y << "  ";
@@ -208,7 +208,6 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
             int tempPosX = tempFlatInd % colSize; 
             int tempPosY = tempFlatInd / colSize; 
 
-            world[flatInd] = '@';
             cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
         //}
 
@@ -309,8 +308,12 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         coordToPos(B);
     }
 
+
+
     //drawing complete particle positions
     for (auto speck : tempParts) {
+        world[posToFlatInd(speck)] = '@'; //trying to fix rendering issue of colliding particles positions not being drawn correctly 
+        //guess: world isn't being updated after the position calc 
         int worldInd = posToFlatInd(speck);
         cout << "\033[" << speck->posY + 2 << ";" << speck->posX + 1 << "H" << world[worldInd];
     }
