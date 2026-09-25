@@ -46,7 +46,7 @@ struct Particle {
     
     //global forces 
     //float gravity = -9.8; 
-    float gravity = 0; 
+    float gravity = 9.8; 
     float dragY;
     float dragX; 
 
@@ -253,7 +253,8 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         }
 
         if (normalY == -1.0) {
-            depth = (speck->coordY + radius) - lowerBound_Y;
+            //depth = (speck->coordY + radius) - lowerBound_Y;
+            depth = (speck->coordY + radius) - upperBound_Y;
         }
         else if (normalY == 1.0) {
             depth = radius - speck->coordY; // Assuming top spatial bound is 0
