@@ -44,6 +44,8 @@ struct Particle {
     int posX; 
     int posY; 
     
+    int prevFlatInd; 
+    
     //global forces 
     //float gravity = -9.8; 
     float gravity = 0; 
@@ -66,6 +68,8 @@ struct Particle {
          //terminal coordinates 
          posX = x; 
          posY = y;
+
+         prevFlatInd = 0;
 
          //simulated coordinates 
          coordX = posX * spatialUnit;
@@ -151,6 +155,8 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         int flatInd = posToFlatInd(speck);
         int tempFlatInd = flatInd; 
 
+        speck->prevFlatInd = tempFlatInd; 
+
         //calculating new position: 
         //euler's update rule: 
         
@@ -205,12 +211,6 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
             debugParticle(speck);
 
         //clearing previous particle position 
-            world[tempFlatInd] = '.';
-
-            int tempPosX = tempFlatInd % colSize; 
-            int tempPosY = tempFlatInd / colSize; 
-
-            cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
 
         debugIndex++;
     }
@@ -323,6 +323,18 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
     //drawing complete particle positions
     for (auto speck : tempParts) {
+
+        int flatInd = posToFlatInd(speck);
+        int tempFlatInd = speck->prevFlatInd; 
+
+        if (tempFlatInd != flatInd) {
+            world[tempFlatInd] = '.';
+
+            int tempPosX = tempFlatInd % colSize;
+            int tempPosY = tempFlatInd / colSize;
+
+            cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
+        }
         //debugParticle(speck);
         world[posToFlatInd(speck)] = '@'; //trying to fix rendering issue of colliding particles positions not being drawn correctly 
         //guess: world isn't being updated after the position calc 
