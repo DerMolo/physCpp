@@ -55,7 +55,7 @@ struct Particle {
          mass = m;
 
          velX = 100; 
-         velY = 5;
+         velY = 0;
 
          accX = 0;
          accY = 0;
@@ -204,16 +204,13 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         if(debugIndex == targetIndex)
             debugParticle(speck);
 
-        //if (tempFlatInd != flatInd) {//clears path if particle has shifted positions 
-            //maybe this conditional is the source of unpredictable position updating 
-            //let's assume they should be updated all the time? 
+        //clearing previous particle position 
             world[tempFlatInd] = '.';
 
             int tempPosX = tempFlatInd % colSize; 
             int tempPosY = tempFlatInd / colSize; 
 
             cout << "\033[" << tempPosY + 2 << ";" << tempPosX + 1 << "H" << world[tempFlatInd];
-        //}
 
         debugIndex++;
     }
@@ -286,6 +283,13 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
         float Dy = B->coordY - A->coordY; 
         float length = sqrt(Dx * Dx + Dy * Dy);
 
+        // Prevent division by zero and dislodge perfectly stacked particles
+        if (length < 0.0001f) {
+            Dx = 0.001f; // Small arbitrary push
+            Dy = 0.001f;
+            length = sqrt(Dx * Dx + Dy * Dy);
+        }
+
         float normalX = Dx / length; 
         float normalY = Dy / length; 
 
@@ -319,6 +323,7 @@ void renderWorld(char* world, vector<Particle*> tempParts) {
 
     //drawing complete particle positions
     for (auto speck : tempParts) {
+        //debugParticle(speck);
         world[posToFlatInd(speck)] = '@'; //trying to fix rendering issue of colliding particles positions not being drawn correctly 
         //guess: world isn't being updated after the position calc 
         int worldInd = posToFlatInd(speck);
